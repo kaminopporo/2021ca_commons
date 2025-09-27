@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>2021年カナダ総選挙</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* HTMLとBody要素をビューポートいっぱいに広げる */
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #ffffff;
+        }
+
+        /* コンテナ（サイドバーと地図を横並びにする） */
+        .container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            gap: 15px;
+            padding: 15px;
+            /* PCレイアウトの全体余白 */
+            box-sizing: border-box;
+            align-items: stretch;
+            position: relative;
+            /* 情報ボタンの基準にするため追加 */
+        }
+
+        /* サイドバーのスタイル */
+        .sidebar {
+            width: 300px;
+            background-color: #cc0000;
+            padding: 30px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            /* サイドバー全体でのスクロールは維持 */
+            position: relative;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* スクロールバーのスタイル（WebKitブラウザ向け） */
+        .sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #FFFFFF00;
+            border-radius: 15px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 15px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* ドラッグハンドルのスタイル (非表示にする) */
+        .sidebar-resizer {
+            display: none;
+        }
+
+        /* 地図が表示されるdiv要素 */
+        #map {
+            flex-grow: 1;
+            height: 100%;
+            width: auto;
+            border-radius: 15px;
+            /* PCレイアウトの地図の角を丸く */
+            overflow: hidden;
+        }
+
+        /* サイドバー内の各セクションのスタイル */
+        .sidebar h1 {
+            font-size: 2em;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 5px;
+            /* タイトルと詳細情報の間のマージンを詰める */
+            text-align: left;
+            color: #ffffff;
+            line-height: 1.3;
+            display: block;
+        }
+
+        /* Info button style - 地図の右上に配置 */
+        .info-button {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            background: none;
+            border: none;
+            border-radius: 0;
+            width: 30px;
+            height: 30px;
+            font-family: 'Material Icons';
+            font-size: 20px;
+            color: #000000;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+            transition: color 0.3s ease, transform 0.2s ease;
+            z-index: 600;
+        }
+
+        .info-button:hover {
+            color: #333;
+            transform: scale(1.02);
+        }
+
+        .legend {
+            margin-bottom: 30px;
+        }
+
+        .legend h2,
+        .details h2 {
+            font-size: 1.4em;
+            font-weight: 500;
+            margin-top: 0;
+            margin-bottom: 5px;
+            /* 詳細情報のタイトル下マージンを詰める */
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 5px;
+            /* 詳細情報のタイトル下パディングを詰める */
+            color: #e0e0e0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            color: #000000;
+            padding: 5px 0;
+            transition: background-color 0.2s ease;
+            border-radius: 15px;
+            cursor: pointer;
+            /* クリック可能であることを示す */
+        }
+
+        /* 選択された凡例項目のスタイル */
+        .legend-item.selected {
+            background-color: #e9e9e9;
+            font-weight: 600;
+            color: #990000;
+        }
+
+        /* カラーシンボルの角を丸くする */
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            flex-shrink: 0;
+            border-radius: 1px;
+            /* ここを変更 */
+        }
+
+        /* 当選政党の凡例スタイル */
+        .legend-color-w {
+            background: linear-gradient(to right, #990000 50%, #1155cc 50%);
+            /* 複数の色をグラデーションで */
+        }
+
+        .legend-color-Liberal {
+            background-color: #990000;
+        }
+
+        .legend-color-Conservative {
+            background-color: #1155cc;
+        }
+
+        .legend-color-BQ {
+            background-color: #46bdc6;
+        }
+
+        .legend-color-NDP {
+            background-color: #e69138;
+        }
+
+        .legend-color-Green {
+            background-color: #38761d;
+        }
+
+        .legend-color-PPC {
+            background-color: #674ea7;
+        }
+
+        .legend-color-CHP {
+            background-color: #a64d79;
+        }
+
+        .legend-color-Rhino {
+            background-color: #d5a6bd;
+        }
+
+        .legend-color-CFP {
+            background-color: #ffd966;
+        }
+
+        .legend-color-UP {
+            background-color: #a2c4c9;
+        }
+
+        .legend-color-Libertarian {
+            background-color: #bf9000;
+        }
+
+        .legend-color-M-L {
+            background-color: #980000;
+        }
+
+        .legend-color-Communist {
+            background-color: #ff9900;
+        }
+
+        .legend-color-Centrist {
+            background-color: #ff0000;
+        }
+
+        .legend-color-APP {
+            background-color: #274e13;
+        }
+
+        .legend-color-Mar {
+            background-color: #fff2cc;
+        }
+
+        .legend-color-Free {
+            background-color: #f1c232;
+        }
+
+        .legend-color-Maverick {
+            background-color: #6aa84f;
+        }
+
+        .legend-color-Pour {
+            background-color: #999999;
+        }
+
+        .legend-color-VCP {
+            background-color: #ffff00;
+        }
+
+        .legend-color-NCA {
+            background-color: #cc4125;
+        }
+
+        .legend-color-Patriote {
+            background-color: #999999;
+        }
+
+        .legend-color-CFF {
+            background-color: #999999;
+        }
+
+        .legend-color-CFP {
+            background-color: #999999;
+        }
+
+
+
+        /* 選択不可の項目スタイル */
+        .legend-item.unselectable {
+            cursor: not-allowed;
+            /* マウスカーソルを変更 */
+            background-color: transparent;
+            /* ホバーアクションをなくす */
+            font-weight: normal;
+            /* 太字をなくす */
+            color: #000000;
+            /* 文字色を元に戻す */
+        }
+
+        .details {
+            margin-top: 15px;
+            /* 詳細情報セクション全体の上のマージンを詰める */
+            flex-grow: 1;
+            /* 詳細情報が利用可能なスペースを最大限使うようにする */
+            display: flex;
+            flex-direction: column;
+            /* flexboxを適用して子要素の配置を制御 */
+        }
+
+        .details h3 {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin-top: 20px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 5px;
+            color: #000000;
+        }
+
+        /* PCレイアウトの詳細情報パネルの段落スタイル */
+        .details p {
+            font-size: 1.05em;
+            margin-bottom: 0;
+            /* 各行間のマージンを詰める */
+            line-height: 1;
+            /* 各行の行間を詰める */
+            color: #000000;
+            /* テキストの色をより濃く */
+        }
+
+        /* 詳細情報パネルのスタイル */
+        #info-panel {
+            background-color: #ffffff;
+            border-radius: 15px;
+            padding: 10px 15px;
+            /* パネル全体のパディングを詰める */
+            flex-grow: 1;
+            /* 親要素の残りの高さを埋めるようにする */
+            overflow-y: auto;
+            /* 必要に応じて自動でスクロールバーを表示 */
+        }
+
+        /* PCレイアウト時のサイドパネルの選挙区名・地域名のスタイルを調整 */
+        #info-panel h2 {
+            font-size: 1.3em;
+            margin-top: 0;
+            margin-bottom: -10px;
+            color: #000000;
+            border-bottom: none;
+            /* 区切り線を削除 */
+        }
+
+
+        #info-panel p {
+            font-size: 0.9em;
+            margin-top: 0;
+            margin-bottom: 10px;
+            /* 各行間のマージンを詰める */
+            line-height: 1;
+            /* 各行の行間を詰める */
+            color: #000000;
+            /* テキストの色をより濃く */
+        }
+
+        /* ハイライト用スタイル */
+        .highlighted-info-text {
+            color: #990000 !important;
+        }
+
+        /* 説明モーダル/パネルのスタイル */
+        .explanation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .explanation-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .explanation-panel {
+            background-color: #ffffff;
+            padding: 30px;
+            /* PCレイアウトのパディング */
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .explanation-overlay.active .explanation-panel {
+            transform: translateY(0);
+        }
+
+        .explanation-panel h2 {
+            font-size: 1.8em;
+            color: #cc0000;
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .explanation-panel p {
+            font-size: 1.1em;
+            line-height: 1.7;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .explanation-panel ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .explanation-panel li {
+            font-size: 1.05em;
+            line-height: 1.6;
+            margin-bottom: 8px;
+            color: #444;
+        }
+
+        /* 新しい凡例コンテナのスタイル */
+        .explanation-panel .legend-in-explanation {
+            margin-top: 25px;
+            margin-bottom: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .explanation-panel .legend-in-explanation .legend-item {
+            font-size: 1em;
+            /* 説明パネル内の凡例は少し小さく */
+            margin-bottom: 8px;
+        }
+
+        /* 説明パネル内のカラーシンボルの角を丸くする */
+        .explanation-panel .legend-in-explanation .legend-color {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            border-radius: 15px;
+            box-sizing: border-box;
+        }
+
+        .explanation-panel .close-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 2em;
+            color: #999;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .explanation-panel .close-button:hover {
+            color: #333;
+        }
+
+        /* 新しく追加する区切り線 */
+        .explanation-panel .section-divider {
+            border-top: 1px solid #e0e0e0;
+            margin: 20px 0;
+        }
+
+        .info-divider {
+            border: none;
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 10px 0;
+        }
+
+        /* LeafletのSVG要素内にパターンを定義するためのCSSを追加 */
+        #map svg defs {
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+        }
+
+        /* --- スマートフォン向けのスタイル (画面幅が768px以下の場合) --- */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                padding: 7.5px;
+                /* 修正: スマホの全体余白を半分に */
+                gap: 0;
+                height: 100%;
+                width: 100%;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            #map {
+                flex-grow: 1;
+                height: 100%;
+                /* border-radius: 12px; はPC版のスタイルが継承されるため、ここでの変更は不要 */
+                box-shadow: none;
+                /* スマホでは影をなくす（任意） */
+                overflow: hidden;
+            }
+
+            #info-panel {
+                display: none;
+            }
+
+            /* Info button on mobile */
+            .info-button {
+                top: 12.5px;
+                /* 修正: スマホでもPCと同様に情報ボタンを15pxの位置に */
+                right: 12.5px;
+                /* 修正: スマホでもPCと同様に情報ボタンを15pxの位置に */
+                width: 35px;
+                height: 35px;
+                /* Material Iconsに対応するためにfont-sizeを調整 */
+                font-size: 24px;
+                z-index: 600;
+            }
+
+            /* Leafletポップアップのスタイル調整 (変更箇所) */
+            .leaflet-popup-content-wrapper {
+                border-radius: 15px;
+                padding: 2px;
+                /* パディングをさらに減らす */
+                line-height: 1.1;
+                /* 行間をさらに詰める */
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                /* 画面端に余裕を持たせるための調整 */
+                margin-left: 5px;
+                margin-right: 5px;
+            }
+
+            .leaflet-popup-content {
+                word-break: break-word;
+                /* テキストが画面幅を超えないように自動改行 */
+            }
+
+            .leaflet-popup-content h2 {
+                font-size: 1.2em;
+                /* フォントサイズを調整 */
+                margin-top: 0;
+                margin-bottom: 3px;
+                /* マージンをさらに減らす */
+                line-height: 1.1;
+                /* 行間をさらに詰める */
+                color: #2c3e50;
+            }
+
+            /* スマホポップアップのセクション見出しの文字サイズを小さく */
+            .leaflet-popup-content h3 {
+                font-size: 1em;
+                /* フォントサイズを調整 */
+                margin-top: 5px;
+                margin-bottom: 2px;
+                border-bottom: 1px solid #e0e0e0;
+                /* 追加: 区切り線 */
+                padding-bottom: 3px;
+                /* 追加: 区切り線と文字の間のスペース */
+            }
+
+            /* スマホポップアップの得票率セクションの空白調整 */
+            .leaflet-popup-content h3:first-of-type {
+                margin-bottom: 2px;
+            }
+
+            .leaflet-popup-content h3:not(:first-of-type) {
+                margin-top: 15px;
+                /* 修正: 見出しと前の項目の間隔を広げる */
+            }
+
+            .leaflet-popup-content p {
+                font-size: 1em;
+                /* 段落のフォントサイズをさらに小さく */
+                margin-top: 0;
+                /* 段落の上マージンを削除 */
+                margin-bottom: 5px;
+                /* 修正: 本文間隔をさらに広げる */
+                line-height: 1.2;
+                /* 行間を詰める */
+            }
+
+            .leaflet-popup-content hr {
+                border: none;
+                height: 0.8px;
+                background-color: #e0e0e0;
+                margin: 3px 0;
+                /* 余白をさらに削減 */
+            }
+
+
+            /* Leafletポップアップの閉じるボタンの位置調整 */
+            .leaflet-popup-close-button {
+                top: 5px !important;
+                /* ボタン位置を上へ */
+                right: 10px !important;
+                /* ボタン位置を右へ */
+                font-size: 1.5em;
+                /* ボタンのサイズを小さく */
+            }
+
+            /* 説明パネルのスマホ対応 */
+            .explanation-panel {
+                margin: auto;
+                align-self: center;
+                width: 75vw;
+                height: 75vh;
+                max-width: none;
+                max-height: none;
+                padding: 30px;
+                box-sizing: border-box;
+            }
+
+            .explanation-panel h2 {
+                font-size: 1.5em;
+            }
+
+            .explanation-panel p,
+            .explanation-panel li {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button id="infoButton" class="info-button" aria-label="地図の説明を表示">
+            <span class="material-icons">info</span>
+        </button>
+        <div class="sidebar" id="sidebar">
+            <h1>
+                2021年カナダ総選挙
+            </h1>
+            <div class="details">
+                <h2>詳細情報</h2>
+                <div id="info-panel">地図をクリックするとここに情報が表示されます。</div>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+    <div id="explanationOverlay" class="explanation-overlay">
+        <div class="explanation-panel">
+            <button class="close-button" id="closeExplanationButton" aria-label="説明を閉じる">&times;</button>
+            <h2>地図の説明</h2>
+            <p>この地図は、2021年9月20日に行われたカナダ庶民院議員選挙の選挙区ごとの当選政党及び各政党ごとの得票率を示しています。</p>
+            <p>各選挙区は、選択された政党の色で塗り分けられ、色の濃さはその政党の得票率に比例しています（高得票率ほど色が濃くなります）。</p>
+            <div class="legend-in-explanation">
+                <h3>表示政党を選択</h3>
+                <div class="legend-item selected" data-party-name="win-party">
+                    <div class="legend-color legend-color-w"></div>
+                    当選政党
+                </div>
+                <div class="legend-item" data-party-name="Liberal">
+                    <div class="legend-color legend-color-Liberal"></div>
+                    Liberal: 自由党
+                </div>
+                <div class="legend-item" data-party-name="Conservative">
+                    <div class="legend-color legend-color-Conservative"></div>
+                    Conservative: 保守党
+                </div>
+                <div class="legend-item" data-party-name="BQ">
+                    <div class="legend-color legend-color-BQ"></div>
+                    BQ: ブロック・ケベコワ
+                </div>
+                <div class="legend-item" data-party-name="NDP">
+                    <div class="legend-color legend-color-NDP"></div>
+                    NDP: 新民主党
+                </div>
+                <div class="legend-item" data-party-name="Green">
+                    <div class="legend-color legend-color-Green"></div>
+                    Green: 緑の党
+                </div>
+                <div class="legend-item" data-party-name="PPC">
+                    <div class="legend-color legend-color-PPC"></div>
+                    PPC: 人民党
+                </div>
+                <div class="legend-item" data-party-name="Free">
+                    <div class="legend-color legend-color-Free"></div>
+                    Free: Free Party Canada
+                </div>
+                <div class="legend-item" data-party-name="Maverick">
+                    <div class="legend-color legend-color-Maverick"></div>
+                    Maverick: Maverick Party
+                </div>
+                <div class="legend-item" data-party-name="CHP">
+                    <div class="legend-color legend-color-CHP"></div>
+                    CHP: Christian Heritage
+                </div>
+                <div class="legend-item" data-party-name="Rhino.">
+                    <div class="legend-color legend-color-Rhino"></div>
+                    Rhino.: Rhinoceros
+                </div>
+                <div class="legend-item" data-party-name="Libertarian">
+                    <div class="legend-color legend-color-Libertarian"></div>
+                    Libertarian
+                </div>
+                <div class="legend-item" data-party-name="Communist">
+                    <div class="legend-color legend-color-Communist"></div>
+                    Communist
+                </div>
+                <div class="legend-item" data-party-name="M-L">
+                    <div class="legend-color legend-color-M-L"></div>
+                    M-L: Marxist–Leninist
+                </div>
+                <div class="legend-item" data-party-name="Pour l'Indépendance du Québec">
+                    <div class="legend-color legend-color-Pour"></div>
+                    Pour l'Indépendance du Québec
+                </div>
+                <div class="legend-item" data-party-name="APP">
+                    <div class="legend-color legend-color-APP"></div>
+                    APP: Animal Protection
+                </div>
+                <div class="legend-item" data-party-name="Mar.">
+                    <div class="legend-color legend-color-Mar"></div>
+                    Mar.: Marijuana
+                </div>
+                <div class="legend-item" data-party-name="VCP">
+                    <div class="legend-color legend-color-VCP"></div>
+                    VCP: Veterans Coalition
+                </div>
+                <div class="legend-item" data-party-name="Centrist">
+                    <div class="legend-color legend-color-Centrist"></div>
+                    Centrist
+                </div>
+                <div class="legend-item" data-party-name="NCA">
+                    <div class="legend-color legend-color-NCA"></div>
+                    NCA: National Citizens Alliance
+                </div>
+                <div class="legend-item" data-party-name="Patriote">
+                    <div class="legend-color legend-color-Patriote"></div>
+                    Patriote
+                </div>
+                <div class="legend-item" data-party-name="CFF">
+                    <div class="legend-color legend-color-CFF"></div>
+                    CFF: Canada's Fourth Front
+                </div>
+                <div class="legend-item" data-party-name="CNP">
+                    <div class="legend-color legend-color-CNP"></div>
+                    CNP: Canadian Nationalist Party
+                </div>
+            </div>
+            <div class="section-divider"></div>
+            <p><strong>データソース</strong>: カナダ政府が公開する開票結果のデータに基づいています。</p>
+            <p><strong>クリックで詳細</strong>: 地図上の選挙区をクリックすると、サイドバー（PC）またはポップアップ（スマートフォン）にその選挙区の各政党の得票率詳細が表示されます。</p>
+        </div>
+    </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Leafletマップの初期化
+        var map = L.map('map', {
+            zoomControl: false
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(map);
+
+
+        // 地図の初期表示をトロントに設定
+        const torontoCoordinates = [43.6532, -79.3832];
+        const initialZoom = 10; // トロント周辺がよく見えるようにズームレベルを10に変更
+        map.setView(torontoCoordinates, initialZoom);
+
+
+
+        // --- GeoJSONデータの読み込みと表示 ---
+        var geojsonDataPath = '2021カナダ下.json';
+        var geojsonLayer;
+        const districtLayers = new Map();
+        let currentSelectedFedNum = null;
+        let currentViewMode = 'win-party';
+        let highlightColor = '#990000';
+
+        // 各政党の全選挙区での最高得票率を格納するオブジェクト
+        const maxPartyPercentage = {};
+
+        // カナダ選挙の政党属性を定義
+        const partyAttributes = {
+            "Liberal": { color: '#990000', fullName: '自由党' },
+            "Conservative": { color: '#1155cc', fullName: '保守党' },
+            "BQ": { color: '#46bdc6', fullName: 'ブロック・ケベコワ' },
+            "NDP": { color: '#e69138', fullName: '新民主党' },
+            "Green": { color: '#38761d', fullName: '緑の党' },
+            "PPC": { color: '#674ea7', fullName: '人民党' },
+            "CHP": { color: '#a64d79', fullName: 'Christian Heritage' },
+            "Rhino.": { color: '#d5a6bd', fullName: 'Rhinoceros' },
+            "CFP": { color: '#ffd966', fullName: 'Canadian Future' },
+            "UP": { color: '#a2c4c9', fullName: 'United' },
+            "Libertarian": { color: '#bf9000', fullName: 'Libertarian' },
+            "M-L": { color: '#980000', fullName: 'Marxist–Leninist' },
+            "Communist": { color: '#ff9900', fullName: 'Communist' },
+            "Centrist": { color: '#ff0000', fullName: 'Centrist' },
+            "APP": { color: '#274e13', fullName: 'Animal Protection' },
+            "Mar.": { color: '#fff2cc', fullName: 'Marijuana' },
+            "Others": { color: '#666666', fullName: 'その他' },
+            "Free": { color: '#f1c232', fullName: 'Free Party Canada' },
+            "Maverick": { color: '#6aa84f', fullName: 'Maverick Party' },
+            "PIQ": { color: '#999999', fullName: "Pour l'Indépendance du Québec" },
+            "VCP": { color: '#ffff00', fullName: 'Veterans Coalition' },
+            "NCA": { color: '#cc4125', fullName: 'National Citizens Alliance' },
+            "Patriote": { color: '#999999', fullName: 'Patriote' },
+            "CFF": { color: '#999999', fullName: "Canada's Fourth Front" },
+            "CNP": { color: '#999999', fullName: 'Canadian Nationalist Party' }
+        };
+
+        const partyAbbreviations = {
+            "Liberal": "Liberal",
+            "Conservative": "Conservative",
+            "BQ": "BQ",
+            "NDP": "NDP",
+            "Green": "Green",
+            "PPC": "PPC",
+            "CHP": "CHP",
+            "Rhino.": "Rhino.",
+            "CFP": "CFP",
+            "UP": "UP",
+            "Libertarian": "Libertarian",
+            "M-L": "M-L",
+            "Communist": "Communist",
+            "Centrist": "Centrist",
+            "APP": "APP",
+            "Mar.": "Mar.",
+            "Free": "Free",
+            "Maverick": "Maverick",
+            "PIQ": "PIQ",
+            "VCP": "VCP",
+            "NCA": "NCA",
+            "Patriote": "Patriote",
+            "CFF": "CFF",
+            "CNP": "CNP"
+        };
+
+        // 値をチェックして文字列を返すヘルパー関数
+        function formatValue(value, isPercentage = false) {
+            if (value === null || value === undefined) {
+                return 'N/A';
+            }
+            if (typeof value === 'number') {
+                if (isPercentage) {
+                    return `${value.toFixed(2)}%`;
+                }
+                return value.toLocaleString();
+            }
+            return value || 'N/A';
+        }
+
+        fetch(geojsonDataPath)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('GeoJSONファイルの読み込みに失敗しました: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("GeoJSONデータが正常に読み込まれました:", data);
+
+                // --- 新しく追加する最高得票率の計算ロジック ---
+                // maxPartyPercentage を初期化
+                const partyCodesForMax = Object.keys(partyAbbreviations);
+                partyCodesForMax.forEach(code => {
+                    maxPartyPercentage[code] = 0;
+                });
+
+                // 全フィーチャを反復処理し、各政党の最大得票率を計算
+                data.features.forEach(feature => {
+                    const properties = feature.properties;
+                    if (properties) {
+                        partyCodesForMax.forEach(code => {
+                            const rateKey = `2021カナダ下_${code}率`;
+                            const rate = parseFloat(properties[rateKey]);
+                            if (!isNaN(rate) && rate > maxPartyPercentage[code]) {
+                                maxPartyPercentage[code] = rate;
+                            }
+                        });
+                    }
+                });
+                console.log("各政党の最高得票率:", maxPartyPercentage);
+
+                // 地図のポリゴンスタイルを決定する関数
+                function style(feature) {
+                    const properties = feature.properties;
+                    if (!properties) {
+                        return {
+                            fillColor: '#ccc',
+                            fillOpacity: 0.0,
+                            weight: 0,
+                            opacity: 0,
+                            color: 'white'
+                        };
+                    }
+
+                    let fillColor = '#cccccc';
+                    let fillOpacity = 0.0;
+                    let percentageValue;
+                    let partyCode;
+
+                    if (currentViewMode === 'win-party') {
+                        partyCode = properties['2021カナダ下_win-party'];
+                        percentageValue = parseFloat(properties['2021カナダ下_win-percentage']);
+                        fillColor = partyAttributes[partyCode] ? partyAttributes[partyCode].color : '#cccccc';
+                    } else {
+                        partyCode = currentViewMode;
+                        percentageValue = parseFloat(properties[`2021カナダ下_${partyCode}率`]);
+                        const maxPercentage = 100;
+                        fillColor = partyAttributes[partyCode] ? partyAttributes[partyCode].color : '#cccccc';
+                        if (!isNaN(percentageValue)) {
+                            fillOpacity = percentageValue / maxPercentage;
+                        }
+                    }
+
+
+                    let maxReferencePercentage = 100.0; // デフォルトは100%
+
+                    if (currentViewMode === 'win-party') {
+                        // 当選政党モード: 75%で完全に塗りつぶし
+                        maxReferencePercentage = 75.0;
+                    } else {
+                        // 各政党モード: その政党の最高得票率で完全に塗りつぶし
+                        maxReferencePercentage = maxPartyPercentage[partyCode] || 100.0; // 計算結果がない場合は安全のため100%
+                    }
+
+                    if (!isNaN(percentageValue)) {
+                        // 計算: 実際の不透明度は (得票率 / 基準値) で、最大は 1.0 (100%)
+                        fillOpacity = Math.min(percentageValue / maxReferencePercentage, 1.0);
+                    }
+
+
+
+                    return {
+                        fillColor: fillColor,
+                        fillOpacity: fillOpacity,
+                        weight: 1,
+                        opacity: 1,
+                        color: 'white',
+                        dashArray: '3'
+                    };
+                }
+
+
+                // フィーチャがクリックされた時の処理
+                function clickFeature(e) {
+                    const layer = e.target;
+                    const fedNum = layer.feature.properties['FED_NUM'];
+
+                    // 既存のハイライトをリセット
+                    if (currentSelectedFedNum && districtLayers.has(currentSelectedFedNum)) {
+                        districtLayers.get(currentSelectedFedNum).forEach(muniLayer => {
+                            geojsonLayer.resetStyle(muniLayer);
+                        });
+                    }
+
+                    // 新しい地物をハイライト
+                    if (fedNum && districtLayers.has(fedNum)) {
+                        districtLayers.get(fedNum).forEach(muniLayer => {
+                            muniLayer.setStyle({
+                                weight: 3,
+                                color: highlightColor,
+                                dashArray: '',
+                            });
+                            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                                muniLayer.bringToFront();
+                            }
+                        });
+                        currentSelectedFedNum = fedNum;
+                    }
+
+                    var feature = e.target.feature;
+                    var properties = feature.properties;
+                    let infoContent = '';
+
+                    if (properties) {
+
+                        // 選挙区名
+                        const districtName = properties['2021カナダ下_district'] || null;
+
+                        if (districtName) {
+                            infoContent += `<h2>${districtName}</h2>`;
+                        }
+                        infoContent += `<hr class="info-divider">`;
+
+                        // 当選政党
+                        const winParty = properties['2021カナダ下_win-party'] || null;
+                        const winGiven = properties['2021カナダ下_win-name'] || null;
+                        const winVote = formatValue(properties['2021カナダ下_win-vote']);
+                        const winPercentage = formatValue(properties['2021カナダ下_win-percentage'], true);
+                        if (winParty || winGiven || winSurname || winVote || winPercentage) {
+                            infoContent += `<h3>当選政党</h3>`;
+                            infoContent += `<p class="${currentViewMode === 'win-party' ? 'highlighted-info-text' : ''}">`;
+                            if (winParty) infoContent += `<b>${winParty}</b>: `;
+                            if (winGiven) infoContent += `${winGiven}<br>`;
+                            if (winVote || winPercentage) infoContent += `${winPercentage} (${winVote}票)`;
+                            infoContent += `</p>`;
+                        }
+
+
+
+                        // 政党別得票率
+                        infoContent += `<h3>政党別得票率</h3>`;
+
+                        const partiesData = [];
+                        let othersData = null;
+
+                        const parties = Object.keys(partyAbbreviations);
+
+                        // 1. 各政党のデータを収集
+                        parties.forEach(partyCode => {
+                            const partyName = partyAttributes[partyCode] ? partyAttributes[partyCode].fullName : partyCode;
+                            const vote = properties[`2021カナダ下_${partyCode}票`];
+                            const rate = properties[`2021カナダ下_${partyCode}率`];
+
+                            if (vote !== undefined && vote !== null && rate !== undefined && rate !== null) {
+                                partiesData.push({
+                                    code: partyCode,
+                                    name: partyCode,
+                                    vote: parseFloat(vote), // ソート用に数値として保持
+                                    rate: rate,
+                                    isHighlighted: currentViewMode === partyCode
+                                });
+                            }
+                        });
+
+                        // 2. Othersのデータを収集（ソートとは別に扱う）
+                        const othersVote = properties[`2021カナダ下_Others票`];
+                        const othersRate = properties[`2021カナダ下_Others率`];
+
+                        if (othersVote !== undefined && othersVote !== null) {
+                            othersData = {
+                                code: 'Others',
+                                name: 'Others',
+                                vote: parseFloat(othersVote),
+                                rate: othersRate,
+                                isHighlighted: false // Othersはビューモードの対象外なのでハイライトしない
+                            };
+                        }
+
+                        // 3. 得票数に基づいて降順にソート
+                        partiesData.sort((a, b) => b.vote - a.vote);
+
+                        // 4. ソートされたリストとOthersのHTMLを生成してinfoContentに追加
+
+                        // 主要政党のリストを追加
+                        partiesData.forEach(p => {
+                            const formattedVote = formatValue(p.vote);
+                            const formattedPercentage = formatValue(p.rate, true);
+                            infoContent += `<p class="${p.isHighlighted ? 'highlighted-info-text' : ''}"><b>${p.name}</b>: ${formattedPercentage} (${formattedVote}票)</p>`;
+                        });
+
+                        // Othersのデータを最後に追加
+                        if (othersData) {
+                            const formattedVote = formatValue(othersData.vote);
+                            const formattedPercentage = formatValue(othersData.rate, true);
+                            infoContent += `<p><b>${othersData.name}</b>: ${formattedPercentage} (${formattedVote}票)</p>`;
+                        }
+
+
+
+
+
+                        // 情報がない場合の表示
+                        if (infoContent === `<h2>${districtName}</h2><hr class="info-divider">`) {
+                            infoContent += `<p>地物情報がありません。</p>`;
+                        }
+                    } else {
+                        infoContent = `<p>地物情報がありません。</p>`;
+                    }
+
+                    if (window.innerWidth <= 768) {
+                        L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(infoContent)
+                            .openOn(map);
+                    } else {
+                        var infoPanel = document.getElementById('info-panel');
+                        infoPanel.innerHTML = infoContent;
+                    }
+                }
+
+                function onEachFeature(feature, layer) {
+                    const fedNum = feature.properties['FED_NUM'];
+                    if (fedNum) {
+                        if (!districtLayers.has(fedNum)) {
+                            districtLayers.set(fedNum, []);
+                        }
+                        districtLayers.get(fedNum).push(layer);
+                    }
+                    layer.on({
+                        click: clickFeature
+                    });
+                }
+
+                map.on('click', function (e) {
+                    if (!e.originalEvent.target.classList.contains('leaflet-interactive')) {
+                        if (currentSelectedFedNum && districtLayers.has(currentSelectedFedNum)) {
+                            districtLayers.get(currentSelectedFedNum).forEach(muniLayer => {
+                                geojsonLayer.resetStyle(muniLayer);
+                            });
+                        }
+                        currentSelectedFedNum = null;
+                        document.getElementById('info-panel').innerHTML = '地図をクリックするとここに情報が表示されます。';
+                    }
+                });
+
+
+
+                geojsonLayer = L.geoJSON(data, {
+                    style: style,
+                    onEachFeature: onEachFeature
+                }).addTo(map);
+
+                // GeoJSON全体にフィットする処理は削除し、初期設定のビューを維持します。
+                /*
+                var bounds = geojsonLayer.getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds);
+                }
+                */
+
+                updateMapStyle();
+            })
+
+
+
+
+            .catch(error => {
+                console.error('GeoJSONファイルの読み込みまたは処理中にエラーが発生しました:', error);
+            });
+
+        function updateMapStyle() {
+            if (geojsonLayer) {
+                geojsonLayer.eachLayer(function (layer) {
+                    geojsonLayer.resetStyle(layer);
+                });
+            }
+        }
+
+        // --- 説明モーダルのJavaScript制御 ---
+        const infoButton = document.getElementById('infoButton');
+        const explanationOverlay = document.getElementById('explanationOverlay');
+        const closeExplanationButton = document.getElementById('closeExplanationButton');
+        const legendItems = document.querySelectorAll('.legend-in-explanation .legend-item:not(.unselectable)');
+
+        window.addEventListener('load', () => {
+            explanationOverlay.classList.add('active');
+        });
+
+        infoButton.addEventListener('click', () => {
+            explanationOverlay.classList.add('active');
+        });
+
+        closeExplanationButton.addEventListener('click', () => {
+            explanationOverlay.classList.remove('active');
+        });
+
+        explanationOverlay.addEventListener('click', (e) => {
+            if (e.target === explanationOverlay) {
+                explanationOverlay.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && explanationOverlay.classList.contains('active')) {
+                explanationOverlay.classList.remove('active');
+            }
+        });
+
+        legendItems.forEach(item => {
+            item.addEventListener('click', () => {
+                legendItems.forEach(li => li.classList.remove('selected'));
+                item.classList.add('selected');
+                currentViewMode = item.dataset.partyName;
+                updateMapStyle();
+                console.log("Current view mode set to:", currentViewMode);
+            });
+        });
+    </script>
+</body>
+
+</html>
